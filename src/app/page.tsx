@@ -21,6 +21,7 @@ import GiftTransferPage from "./gift_transfer";
 import GiftReceivePage from "./gift_receive";
 import GiftReturnPage from "./gift_return";
 import TransferPage from "./transfer";
+import FaceEnrollment from '../components/face-enrollment';
 // import { useRouter } from 'next/navigation';
 
 import Logo from '../ui/Logo';
@@ -146,6 +147,8 @@ export default function Home() {
 
   const renderPage = () => {
     switch (currentPage) {
+      case 'face-enrollment':
+        return <FaceEnrollment onBack={() => setCurrentPage('initial')} />;
       case 'contacts':
         return <ContactPage onContactSelect={(contact) => {
           setSelectedContact(contact);
@@ -222,6 +225,17 @@ export default function Home() {
             <div className="fixed top-16 right-4 bg-white shadow-lg rounded p-4 z-50">
               {client ? (
                 <>
+                  <Button
+                    fullWidth
+                    onClick={() => {
+                      setCurrentPage('face-enrollment');
+                      setGearMenuOpen(false);
+                    }}
+                    structure="base"
+                    className="bg-purple-600 text-white hover:bg-purple-700 mb-2"
+                  >
+                    Add ZK Face
+                  </Button>
                   <Button
                     fullWidth
                     onClick={() => {
