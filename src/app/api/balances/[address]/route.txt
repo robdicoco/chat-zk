@@ -1,0 +1,95 @@
+import { NextResponse } from 'next/server';
+
+const XION_API_URL = process.env.XION_API_URL ||'https://api.xion-testnet-2.burnt.com';
+
+
+export async function GET(
+  request: Request,
+  { params }: { params: { account_id: string } }
+) {
+  try {
+
+    const { searchParams } = new URL(request.url);
+
+    const address = params.account_id; 
+
+    if (address === null) {
+      return NextResponse.json(
+        { error: 'Account ID (Address) is required' },
+        { status: 400 }
+      );
+    }
+
+    let pagination_offset = "0";
+    let pagination_limit = "12";
+    let pagination_count_total = "true";
+    let pagination_reverse = "false";
+    let resolve_denom = "false";
+
+    // Set default values only if not provided
+    if (searchParams.has('pagination.offset') ){
+      pagination_offset = searchParams.get('pagination.offset') ?? "0" ;
+    }
+    if (searchParams.has('pagination.limit')) {
+      pagination_limit = searchParams.get('pagination.limit') ?? "12" ;
+    }
+    if (searchParams.has('pagination.count_total')) {
+      pagination_count_total = searchParams.get('pagination.count_total') ?? "true" ;
+    }
+    if (searchParams.has('pagination.reverse')) {
+      pagination_reverse = searchParams.get('pagination.reverse') ?? "false" ;
+    }
+    if (searchParams.has('resolve_denom')) {
+      resolve_denom = searchParams.get('resolve_denom') ?? "false" ;
+    }
+    
+
+    console.log('Making request to xion:', {
+      url: `${XION_API_URL}/cosmos/bank/v1beta1/balances/${address}`,
+    });
+
+    const response = await fetch(
+      `${XION_API_URL}/cosmos/bank/v1beta1/balances/${address}?pagination.offset=${pagination_offset}&pagination.limit=${pagination_limit}&pagination.count_total=${pagination_count_total}&pagination.reverse=${pagination_reverse}&resolve_denom=${resolve_denom}`,
+      {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    if (!response.ok) {
+      let errorMessage = 'Failed to fetch balances';
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.detail || errorMessage;
+      } catch (e) {
+        console.error('Error parsing error response:', e);
+      }
+      return NextResponse.json(
+        { error: errorMessage },
+        { status: response.status }
+      );
+    }
+
+    let data;
+    try {
+      data = await response.json();
+      console.log('Backend response:', data);
+    } catch (e) {
+      console.error('Error parsing response:', e);
+      return NextResponse.json(
+        { error: 'Invalid response from server' },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json(data);
+  } catch (error) {
+    console.error('Error fetching balances:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch balances' },
+      { status: 500 }
+    );
+  }
+} 

@@ -1,0 +1,168 @@
+'use client';
+
+import React, { useState } from 'react';
+import { 
+  FaArrowLeft, 
+  FaSearch, 
+  FaFilter, 
+  FaPlus,
+  FaMoneyBillWave,
+  FaCreditCard,
+  FaExchangeAlt,
+  FaHistory
+} from 'react-icons/fa';
+import SendPaymentForm from './send-payment-form';
+
+interface Payment {
+  id: string;
+  amount: number;
+  currency: string;
+  status: 'completed' | 'pending' | 'failed';
+  date: string;
+  recipient: string;
+  type: 'send' | 'receive' | 'exchange';
+}
+
+const PaymentsPage: React.FC = () => {
+  const [activeTab, setActiveTab] = useState<'all' | 'send' | 'receive' | 'exchange'>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showSendPayment, setShowSendPayment] = useState(false);
+
+  const payments: Payment[] = [
+    {
+      id: '1',
+      amount: 100,
+      currency: 'USD',
+      status: 'completed',
+      date: '2024-03-20',
+      recipient: 'John Doe',
+      type: 'send'
+    },
+    {
+      id: '2',
+      amount: 50,
+      currency: 'EUR',
+      status: 'pending',
+      date: '2024-03-19',
+      recipient: 'Jane Smith',
+      type: 'receive'
+    },
+    {
+      id: '3',
+      amount: 200,
+      currency: 'BTC',
+      status: 'completed',
+      date: '2024-03-18',
+      recipient: 'Exchange',
+      type: 'exchange'
+    }
+  ];
+
+  const filteredPayments = payments.filter(payment => {
+    if (activeTab !== 'all' && payment.type !== activeTab) return false;
+    if (searchQuery) {
+      return payment.recipient.toLowerCase().includes(searchQuery.toLowerCase());
+    }
+    return true;
+  });
+
+  if (showSendPayment) {
+    return <SendPaymentForm />;
+  }
+
+  return (
+    <div className="p-6 max-w-7xl mx-auto w-full">
+      <h2 className="text-2xl font-semibold mb-6 text-white/90 flex items-center">
+        <span role="img" aria-label="money" className="mr-2 text-purple-400">💸</span>
+        Payments
+      </h2>
+
+      {/* Quick Actions */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        <button 
+          onClick={() => setShowSendPayment(true)}
+          className="bg-gradient-to-br from-purple-600/10 to-green-500/10 rounded-xl p-6 border border-purple-500/10 backdrop-blur-sm hover:from-purple-600/20 hover:to-green-500/20 transition-all duration-300 group"
+        >
+          <div className="flex items-center gap-3 mb-2">
+            <span role="img" aria-label="send" className="text-2xl group-hover:scale-110 transition-transform text-purple-400">📤</span>
+            <span className="text-gray-300 font-medium">Send Money</span>
+          </div>
+          <p className="text-gray-400 text-sm">Transfer funds to friends or businesses</p>
+        </button>
+
+        <button className="bg-gradient-to-br from-purple-600/10 to-green-500/10 rounded-xl p-6 border border-purple-500/10 backdrop-blur-sm hover:from-purple-600/20 hover:to-green-500/20 transition-all duration-300 group">
+          <div className="flex items-center gap-3 mb-2">
+            <span role="img" aria-label="request" className="text-2xl group-hover:scale-110 transition-transform text-purple-400">📥</span>
+            <span className="text-gray-300 font-medium">Request Payment</span>
+          </div>
+          <p className="text-gray-400 text-sm">Ask for money from others</p>
+        </button>
+
+        <button className="bg-gradient-to-br from-purple-600/10 to-green-500/10 rounded-xl p-6 border border-purple-500/10 backdrop-blur-sm hover:from-purple-600/20 hover:to-green-500/20 transition-all duration-300 group">
+          <div className="flex items-center gap-3 mb-2">
+            <span role="img" aria-label="schedule" className="text-2xl group-hover:scale-110 transition-transform text-purple-400">⏰</span>
+            <span className="text-gray-300 font-medium">Schedule Payment</span>
+          </div>
+          <p className="text-gray-400 text-sm">Set up future transactions</p>
+        </button>
+      </div>
+
+      {/* Recent Recipients */}
+      <div className="bg-[#1E2433]/50 rounded-xl p-6 mb-8 border border-gray-700/20">
+        <h3 className="text-xl font-semibold mb-4 text-white/90 flex items-center">
+          <span role="img" aria-label="recent" className="mr-2 text-purple-400">🔄</span>
+          Recent Recipients
+        </h3>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+          {[...Array(5)].map((_, i) => (
+            <button 
+              key={i} 
+              onClick={() => setShowSendPayment(true)}
+              className="flex flex-col items-center p-4 rounded-lg bg-gray-800/30 hover:bg-gray-800/50 transition-all duration-300"
+            >
+              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500/10 to-green-500/10 flex items-center justify-center mb-2">
+                <span role="img" aria-label="user" className="text-2xl text-purple-400">👤</span>
+              </div>
+              <span className="text-gray-300 text-sm">User {i + 1}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Payment Methods */}
+      <div className="bg-[#1E2433]/50 rounded-xl p-6 border border-gray-700/20">
+        <h3 className="text-xl font-semibold mb-4 text-white/90 flex items-center">
+          <span role="img" aria-label="wallet" className="mr-2 text-purple-400">💳</span>
+          Payment Methods
+        </h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="bg-gradient-to-r from-purple-900/20 to-green-900/20 p-4 rounded-lg border border-purple-500/10 backdrop-blur-sm">
+            <div className="flex items-center gap-3 mb-2">
+              <span role="img" aria-label="usdc" className="text-2xl text-purple-400">💵</span>
+              <span className="text-gray-300 font-medium">USDC Wallet</span>
+            </div>
+            <p className="text-gray-400 text-sm">Balance: $1,250.75</p>
+          </div>
+
+          <div className="bg-gradient-to-r from-purple-900/20 to-green-900/20 p-4 rounded-lg border border-purple-500/10 backdrop-blur-sm">
+            <div className="flex items-center gap-3 mb-2">
+              <span role="img" aria-label="xion" className="text-2xl text-purple-400">💎</span>
+              <span className="text-gray-300 font-medium">XION Wallet</span>
+            </div>
+            <p className="text-gray-400 text-sm">Balance: 500.25 XION</p>
+          </div>
+
+          <button className="group bg-gradient-to-r from-purple-900/20 to-green-900/20 p-4 rounded-lg border border-purple-500/10 backdrop-blur-sm hover:from-purple-900/30 hover:to-green-900/30 transition-all duration-300">
+            <div className="flex items-center gap-3 mb-2">
+              <span role="img" aria-label="add" className="text-2xl group-hover:scale-110 transition-transform text-purple-400">➕</span>
+              <span className="text-gray-300 font-medium">Add Method</span>
+            </div>
+            <p className="text-gray-400 text-sm">Connect a new payment method</p>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default PaymentsPage; 

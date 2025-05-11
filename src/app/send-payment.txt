@@ -1,0 +1,133 @@
+'use client';
+
+import { useState } from 'react';
+
+export default function SendPayment() {
+  const [selectedCurrency, setSelectedCurrency] = useState('USDC');
+
+  return (
+    <div className="p-6 max-w-7xl mx-auto w-full bg-gradient-to-br from-purple-900/80 to-green-900/80 min-h-screen">
+      {/* Header */}
+      <h2 className="text-2xl font-semibold mb-6 text-white/90 flex items-center">
+        <span role="img" aria-label="send" className="mr-2 text-purple-400">💸</span>
+        Send Payment
+      </h2>
+
+      {/* Currency Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <button 
+          onClick={() => setSelectedCurrency('USDC')}
+          className={`bg-gradient-to-br from-purple-600/20 to-green-500/20 rounded-xl p-6 border border-purple-500/20 backdrop-blur-sm ${
+            selectedCurrency === 'USDC' ? 'ring-2 ring-purple-500/40' : ''
+          }`}
+        >
+          <div className="text-gray-400 mb-2 flex items-center">
+            <span role="img" aria-label="dollar" className="mr-2 text-purple-400">💵</span>
+            USDC Balance
+          </div>
+          <div className="text-3xl font-bold text-white">$1000.00</div>
+        </button>
+        
+        <button
+          onClick={() => setSelectedCurrency('XION')}
+          className={`bg-gradient-to-br from-purple-600/20 to-green-500/20 rounded-xl p-6 border border-purple-500/20 backdrop-blur-sm ${
+            selectedCurrency === 'XION' ? 'ring-2 ring-purple-500/40' : ''
+          }`}
+        >
+          <div className="text-gray-400 mb-2 flex items-center">
+            <span role="img" aria-label="crystal" className="mr-2 text-purple-400">💎</span>
+            XION Balance
+          </div>
+          <div className="text-3xl font-bold text-white">500.25 XION</div>
+        </button>
+      </div>
+
+      {/* Send Form */}
+      <div className="bg-[#1E2433]/50 rounded-xl p-6 mb-8 border border-purple-500/20">
+        <h3 className="text-xl font-semibold mb-4 text-white/90 flex items-center">
+          <span role="img" aria-label="form" className="mr-2 text-purple-400">📝</span>
+          Payment Details
+        </h3>
+
+        {/* Select Contact */}
+        <div className="mb-6">
+          <label className="text-gray-400 mb-2 block flex items-center">
+            <span role="img" aria-label="contact" className="mr-2 text-purple-400">👥</span>
+            Select Contact
+          </label>
+          <div className="relative">
+            <select className="w-full px-4 py-3 rounded-lg bg-[#1E2433]/50 text-white border border-purple-500/20 focus:border-purple-500/50 focus:outline-none appearance-none">
+              <option value="">Select a contact</option>
+              <option value="1">John Doe</option>
+              <option value="2">Jane Smith</option>
+              <option value="3">Alice Johnson</option>
+            </select>
+            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-purple-400 pointer-events-none">▼</span>
+          </div>
+        </div>
+
+        {/* Amount Input */}
+        <div className="mb-6">
+          <label className="text-gray-400 mb-2 block flex items-center">
+            <span role="img" aria-label="amount" className="mr-2 text-purple-400">💰</span>
+            Amount
+          </label>
+          <div className="relative">
+            <input 
+              type="number" 
+              placeholder="0.00"
+              className="w-full px-4 py-3 rounded-lg bg-[#1E2433]/50 text-white border border-purple-500/20 focus:border-purple-500/50 focus:outline-none"
+            />
+            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400">{selectedCurrency}</span>
+          </div>
+        </div>
+
+        {/* Send Button */}
+        <button className="w-full bg-gradient-to-br from-purple-600/20 to-green-500/20 rounded-xl p-4 border border-purple-500/20 backdrop-blur-sm hover:from-purple-600/30 hover:to-green-500/30 transition-all duration-200 flex items-center justify-center gap-2">
+          <span role="img" aria-label="send" className="text-xl text-purple-400">📤</span>
+          <span className="text-white font-medium">Send Payment</span>
+        </button>
+      </div>
+
+      {/* Transaction Summary */}
+      <div className="bg-[#1E2433]/50 rounded-xl p-6 border border-purple-500/20">
+        <h3 className="text-xl font-semibold mb-4 text-white/90 flex items-center">
+          <span role="img" aria-label="summary" className="mr-2">📋</span>
+          Transaction Summary
+        </h3>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="text-gray-400 border-b border-gray-700/30">
+                <th className="text-left pb-3">Detail</th>
+                <th className="text-right pb-3">Value</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr className="border-b border-gray-700/20">
+                <td className="py-3 text-gray-300">Selected Currency</td>
+                <td className="py-3 text-right text-white">
+                  {selectedCurrency === 'USDC' ? (
+                    <div className="flex items-center justify-end gap-2">
+                      <span>USDC</span>
+                      <span role="img" aria-label="usdc">💵</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-end gap-2">
+                      <span>XION</span>
+                      <span role="img" aria-label="xion">💎</span>
+                    </div>
+                  )}
+                </td>
+              </tr>
+              <tr>
+                <td className="py-3 text-gray-300">Network Fee</td>
+                <td className="py-3 text-right text-white">~0.001 {selectedCurrency}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+} 
