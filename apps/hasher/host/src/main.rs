@@ -24,7 +24,10 @@ fn main() {
     // ExecutorEnvBuilder::build().
 
     // For example:
-    let input: u32 = 15 * u32::pow(2, 27) + 1;
+    // let input: u32 = 15 * u32::pow(2, 27) + 1;
+    let input: String = std::env::args().nth(1).unwrap();
+    println!("Input argument is: {}", input);
+    
     let env = ExecutorEnv::builder()
         .write(&input)
         .unwrap()
@@ -43,10 +46,34 @@ fn main() {
     // extract the receipt.
     let receipt = prove_info.receipt;
 
-    // TODO: Implement code for retrieving receipt journal here.
+    // // TODO: Implement code for retrieving receipt journal here.
 
-    // For example:
-    let _output: u32 = receipt.journal.decode().unwrap();
+    // // For example:
+    // let _output: u32 = receipt.journal.decode().unwrap();
+
+    let mut bin_receipt = Vec::new();
+    ciborium::into_writer(&receipt, &mut bin_receipt).unwrap();
+    let out = std::fs::File::create("proof.bin").unwrap();
+    ciborium::into_writer(&receipt, out).unwrap();
+
+    println!(
+        "Serialized bytes array (hex) INNER: {}\n",
+        hex::encode(&bin_receipt)
+    );
+    let receipt_journal_bytes_array = &receipt.journal.bytes.as_slice();
+    println!(
+        "Journal bytes array (hex): {}\n",
+        hex::encode(&receipt_journal_bytes_array)
+    );
+    let image_id_hex = hex::encode(
+        HASHER_GUEST_ID
+            .into_iter()
+            .flat_map(|v| v.to_le_bytes().into_iter())
+            .collect::<Vec<_>>(),
+    );
+    println!("Serialized bytes array (hex) IMAGE_ID: {}\n", image_id_hex);
+    let output: String = receipt.journal.decode().unwrap();
+    println!("Output is: {}", output);
 
     // The receipt was verified at the end of proving, but the below code is an
     // example of how someone else could verify this receipt.
