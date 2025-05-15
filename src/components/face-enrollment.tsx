@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-// import { useAuth } from "./auth-provider"
+import { useAuth } from "./auth-provider"
 import { Button } from "../ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "../ui/card"
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert"
@@ -14,7 +14,7 @@ interface FaceEnrollmentProps {
 }
 
 export default function FaceEnrollment({ onBack }: FaceEnrollmentProps) {
-  // const { enrollFace } = useAuth()
+  const { user, enrollFace } = useAuth()
   const [isLoading, setIsLoading] = useState(true)
   const [isCameraActive, setIsCameraActive] = useState(false)
   const [isCapturing, setIsCapturing] = useState(false)
@@ -65,13 +65,13 @@ export default function FaceEnrollment({ onBack }: FaceEnrollmentProps) {
   }
 
   const captureFace = async () => {
-    if (!videoRef.current || !canvasRef.current) return
+    if (!videoRef.current || !canvasRef.current || !user) return
 
     setIsCapturing(true)
     setError("")
 
     try {
-      // Detect face using our mock implementation
+      // Detect face using face-api.js
       const detection = await detectFace(videoRef.current)
       setFaceDetection(detection)
 
@@ -87,31 +87,29 @@ export default function FaceEnrollment({ onBack }: FaceEnrollmentProps) {
       // Get face descriptor
       const faceDescriptor = Array.from(detection.descriptor)
 
-      // Simulate ZK processing with a timeout
-      setTimeout(async () => {
-        try {
-          // Simulate generating a Poseidon hash
-          const commitment = await generatePoseidonHash(faceDescriptor)
+      try {
+        // Generate Poseidon hash commitment
+        const commitment = await generatePoseidonHash(faceDescriptor)
 
-          // Store the commitment
-          // await enrollFace(commitment)
+        // Store the commitment using the auth provider
+        await enrollFace(commitment)
 
-          setCaptureSuccess(true)
-          setIsProcessing(false)
-          setIsCapturing(false)
+        setCaptureSuccess(true)
+        setIsProcessing(false)
+        setIsCapturing(false)
 
-          // Stop camera
-          if (videoRef.current && videoRef.current.srcObject) {
-            const stream = videoRef.current.srcObject as MediaStream
-            const tracks = stream.getTracks()
-            tracks.forEach((track) => track.stop())
-          }
-        } catch (err) {
-          setError("Failed to process facial data")
-          setIsProcessing(false)
-          setIsCapturing(false)
+        // Stop camera
+        if (videoRef.current && videoRef.current.srcObject) {
+          const stream = videoRef.current.srcObject as MediaStream
+          const tracks = stream.getTracks()
+          tracks.forEach((track) => track.stop())
         }
-      }, 2000)
+      } catch (err) {
+        console.error("Face processing error:", err)
+        setError("Failed to process facial data. Please try again.")
+        setIsProcessing(false)
+        setIsCapturing(false)
+      }
     } catch (err) {
       console.error("Face capture error:", err)
       setError("Failed to capture face. Please try again.")

@@ -1,95 +1,25 @@
 "use client"
 
-import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
+import React, { createContext, useContext, useState, useEffect } from "react"
 
-type User = {
-  id: string
-  name: string
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
+
+interface User {
+  id: number
   email: string
-  faceCommitment?: string
-  isEnrolled: boolean
+  token: string
+  // Add other user fields as needed
 }
 
-type AuthContextType = {
+interface AuthContextType {
   user: User | null
-  isLoading: boolean
-  isAuthenticated: boolean
   login: (email: string, password: string) => Promise<void>
-  logout: () => void
+  logout: () => Promise<void>
   enrollFace: (commitment: string) => Promise<void>
+  verifyFace: (faceDescriptor: number[]) => Promise<boolean>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
-
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-
-  useEffect(() => {
-    // Check if user is stored in localStorage
-    const storedUser = localStorage.getItem("zk-facepay-user")
-    if (storedUser) {
-      setUser(JSON.parse(storedUser))
-    }
-    setIsLoading(false)
-  }, [])
-
-  const login = async (email: string, password: string) => {
-    // Simulate login API call
-    setIsLoading(true)
-    try {
-      // In a real app, this would be an API call
-      const mockUser: User = {
-        id: "1",
-        name: email.split("@")[0],
-        email,
-        isEnrolled: false,
-      }
-
-      setUser(mockUser)
-      localStorage.setItem("zk-facepay-user", JSON.stringify(mockUser))
-    } catch (error) {
-      console.error("Login failed:", error)
-      throw error
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const logout = () => {
-    setUser(null)
-    localStorage.removeItem("zk-facepay-user")
-  }
-
-  const enrollFace = async (commitment: string) => {
-    if (!user) return
-
-    // Update user with face commitment
-    const updatedUser = {
-      ...user,
-      faceCommitment: commitment,
-      isEnrolled: true,
-    }
-
-    setUser(updatedUser)
-    localStorage.setItem("zk-facepay-user", JSON.stringify(updatedUser))
-  }
-
-  return (
-    <AuthContext.Provider
-      value={{
-        user,
-        isLoading,
-        isAuthenticated: !!user,
-        login,
-        logout,
-        enrollFace,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
-  )
-}
 
 export function useAuth() {
   const context = useContext(AuthContext)
@@ -97,4 +27,132 @@ export function useAuth() {
     throw new Error("useAuth must be used within an AuthProvider")
   }
   return context
+}
+
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<User | null>(null)
+
+  useEffect(() => {
+    // Check for stored user data on mount
+    const storedUser = localStorage.getItem("user")
+    if (storedUser) {
+      try {
+        setUser(JSON.parse(storedUser))
+      } catch (error) {
+        console.error("Error parsing stored user:", error)
+        localStorage.removeItem("user")
+      }
+    }
+  }, [])
+
+  const login = async (email: string, password: string) => {
+    try {
+      const response = await fetch(`${API_URL}/auth/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.detail || "Login failed")
+      }
+
+      const userData = await response.json()
+      setUser(userData)
+      localStorage.setItem("user", JSON.stringify(userData))
+    } catch (error) {
+      console.error("Login error:", error)
+      throw error
+    }
+  }
+
+  const logout = async () => {
+    try {
+      if (user?.token) {
+        await fetch(`${API_URL}/auth/logout`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${user.token}`,
+          },
+        })
+      }
+    } catch (error) {
+      console.error("Logout error:", error)
+    } finally {
+      setUser(null)
+      localStorage.removeItem("user")
+    }
+  }
+
+  const enrollFace = async (commitment: string) => {
+    if (!user) throw new Error("User must be logged in to enroll face")
+
+    try {
+      const response = await fetch(`${API_URL}/face/enroll`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${user.token}`,
+        },
+        body: JSON.stringify({
+          user_id: user.id,
+          commitment,
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.detail || "Failed to enroll face")
+      }
+
+      // Update user state if needed
+      const updatedUser = await response.json()
+      setUser({ ...user, ...updatedUser })
+    } catch (error) {
+      console.error("Face enrollment error:", error)
+      throw error
+    }
+  }
+
+  const verifyFace = async (faceDescriptor: number[]): Promise<boolean> => {
+    if (!user) throw new Error("User must be logged in to verify face")
+
+    try {
+      const response = await fetch(`${API_URL}/face/verify`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${user.token}`,
+        },
+        body: JSON.stringify({
+          user_id: user.id,
+          face_descriptor: faceDescriptor,
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.detail || "Face verification failed")
+      }
+
+      const result = await response.json()
+      return result.is_valid
+    } catch (error) {
+      console.error("Face verification error:", error)
+      return false
+    }
+  }
+
+  const value = {
+    user,
+    login,
+    logout,
+    enrollFace,
+    verifyFace,
+  }
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
