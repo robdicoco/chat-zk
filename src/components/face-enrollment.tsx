@@ -91,8 +91,11 @@ export default function FaceEnrollment({ onBack }: FaceEnrollmentProps) {
         // Generate Poseidon hash commitment
         const commitment = await generatePoseidonHash(faceDescriptor)
 
-        // Store the commitment using the auth provider
-        await enrollFace(commitment)
+        // Store both the commitment and face descriptor using the auth provider
+        await enrollFace({
+          commitment,
+          faceDescriptor
+        })
 
         setCaptureSuccess(true)
         setIsProcessing(false)
@@ -186,9 +189,9 @@ export default function FaceEnrollment({ onBack }: FaceEnrollmentProps) {
               <div className="text-sm text-gray-400">
                 <p className="font-medium mb-1">Privacy Notice:</p>
                 <ul className="list-disc pl-5 space-y-1">
-                  <li>Your raw facial data never leaves your device</li>
-                  <li>Only a secure cryptographic commitment is stored</li>
-                  <li>Zero-Knowledge Proofs ensure your privacy during verification</li>
+                  <li>Your facial data is stored securely for verification purposes</li>
+                  <li>A cryptographic commitment is used for zero-knowledge proofs</li>
+                  <li>Your data is protected and only used for authentication</li>
                 </ul>
               </div>
             </>

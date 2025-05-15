@@ -11,11 +11,16 @@ interface User {
   // Add other user fields as needed
 }
 
+interface FaceEnrollmentData {
+  commitment: string
+  faceDescriptor: number[]
+}
+
 interface AuthContextType {
   user: User | null
   login: (email: string, password: string) => Promise<void>
   logout: () => Promise<void>
-  enrollFace: (commitment: string) => Promise<void>
+  enrollFace: (data: FaceEnrollmentData) => Promise<void>
   verifyFace: (faceDescriptor: number[]) => Promise<boolean>
 }
 
@@ -87,7 +92,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  const enrollFace = async (commitment: string) => {
+  const enrollFace = async (data: FaceEnrollmentData) => {
     if (!user) throw new Error("User must be logged in to enroll face")
 
     try {
@@ -99,7 +104,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         },
         body: JSON.stringify({
           user_id: user.id,
-          commitment,
+          commitment: data.commitment,
+          face_descriptor: data.faceDescriptor,
         }),
       })
 
