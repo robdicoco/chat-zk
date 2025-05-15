@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, JSON
 from sqlalchemy.sql import func
 from ..database import Base
 
@@ -8,6 +8,7 @@ class FaceCommitment(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     commitment = Column(String, nullable=False, unique=True)  # Poseidon hash of face descriptor
+    face_descriptor = Column(JSON, nullable=False)  # Store face descriptor as JSON array
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 

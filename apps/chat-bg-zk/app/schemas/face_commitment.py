@@ -1,15 +1,16 @@
 from pydantic import BaseModel
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 
 class FaceCommitmentBase(BaseModel):
     commitment: str
+    face_descriptor: List[float]
 
 class FaceCommitmentCreate(FaceCommitmentBase):
     user_id: int
 
-class FaceCommitmentVerify(FaceCommitmentBase):
-    face_descriptor: list[float]  # The face descriptor to verify against
+class FaceCommitmentVerify(BaseModel):
+    face_descriptor: List[float]  # The face descriptor to verify against
 
 class FaceCommitment(FaceCommitmentBase):
     id: int

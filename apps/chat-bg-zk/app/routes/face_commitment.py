@@ -29,7 +29,8 @@ async def enroll_face(
             return face_commitment_tools.update_face_commitment(
                 db,
                 commitment.user_id,
-                commitment.commitment
+                commitment.commitment,
+                commitment.face_descriptor
             )
         
         # Create new commitment
@@ -44,9 +45,17 @@ async def verify_face(
 ):
     """Verify a face descriptor against a stored commitment."""
     try:
+        # Get user ID from the stored commitment
+        stored_commitment = face_commitment_tools.get_face_commitment(db, verification.user_id)
+        if not stored_commitment:
+            raise HTTPException(
+                status_code=404,
+                detail="No face commitment found for user"
+            )
+
         result = face_commitment_tools.verify_face_commitment(
             db,
-            verification.user_id,
+            stored_commitment.user_id,
             verification.face_descriptor
         )
         
