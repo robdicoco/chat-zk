@@ -16,7 +16,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>
   logout: () => Promise<void>
   enrollFace: (commitment: string) => Promise<void>
-  verifyFace: (faceDescriptor: number[]) => Promise<boolean>
+  verifyFace: (commitment: string) => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -117,34 +117,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  const verifyFace = async (faceDescriptor: number[]): Promise<boolean> => {
-    if (!user) throw new Error("User must be logged in to verify face")
-
+  const fetchUser = async () => {
     try {
-      const response = await fetch(`${API_URL}/face/verify`, {
-        method: "POST",
+      const response = await fetch('/api/auth/me', {
         headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${user.token}`,
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
         },
-        body: JSON.stringify({
-          user_id: user.id,
-          face_descriptor: faceDescriptor,
-        }),
-      })
+      });
 
       if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.detail || "Face verification failed")
+        throw new Error('Failed to fetch user data');
       }
 
-      const result = await response.json()
-      return result.is_valid
+      const userData = await response.json();
+      setUser(userData);
     } catch (error) {
-      console.error("Face verification error:", error)
-      return false
+      console.error('Error fetching user data:', error);
+      setUser(null);
     }
-  }
+  };
+
+  const verifyFace = async (commitment: string) => {
+    try {
+      const response = await fetch('/api/auth/verify-face', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: JSON.stringify({ commitment }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Face verification failed');
+      }
+
+      // Refresh user data after successful verification
+      await fetchUser();
+    } catch (error) {
+      console.error('Face verification error:', error);
+      throw error;
+    }
+  };
 
   const value = {
     user,

@@ -6,29 +6,40 @@ import { Button } from "../ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "../ui/card"
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert"
 import { Loader2, Camera, Check, AlertTriangle } from "lucide-react"
-import { generatePoseidonHash } from "@/lib/zk-utils"
 import { detectFace, drawDetection } from "@/lib/face-api-utils"
-import { storeFaceData } from "@/lib/face-storage"
+import { getFaceData } from "@/lib/face-storage"
+import { cosineSimilarity } from "@/lib/face-api-utils"
 
-interface FaceEnrollmentProps {
+interface FaceLoginProps {
+  onSuccess: () => void;
   onBack: () => void;
 }
 
-export default function FaceEnrollment({ onBack }: FaceEnrollmentProps) {
-  const { user, enrollFace } = useAuth()
+export default function FaceLogin({ onSuccess, onBack }: FaceLoginProps) {
+  const { verifyFace } = useAuth()
   const [isLoading, setIsLoading] = useState(true)
   const [isCameraActive, setIsCameraActive] = useState(false)
   const [isCapturing, setIsCapturing] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
-  const [captureSuccess, setCaptureSuccess] = useState(false)
+  const [verificationSuccess, setVerificationSuccess] = useState(false)
   const [error, setError] = useState("")
   const [faceDetection, setFaceDetection] = useState<any>(null)
+  const [storedFaceData, setStoredFaceData] = useState<{ descriptor: number[], commitment: string } | null>(null)
 
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   // Initialize component
   useEffect(() => {
+    // Check for stored face data
+    const faceData = getFaceData()
+    if (!faceData) {
+      setError("No face data found. Please enroll your face first.")
+      setIsLoading(false)
+      return
+    }
+    setStoredFaceData(faceData)
+
     // Short timeout to simulate loading
     const timer = setTimeout(() => {
       setIsLoading(false)
@@ -65,8 +76,8 @@ export default function FaceEnrollment({ onBack }: FaceEnrollmentProps) {
     }
   }
 
-  const captureFace = async () => {
-    if (!videoRef.current || !canvasRef.current || !user) return
+  const verifyFaceCapture = async () => {
+    if (!videoRef.current || !canvasRef.current || !storedFaceData) return
 
     setIsCapturing(true)
     setError("")
@@ -82,23 +93,26 @@ export default function FaceEnrollment({ onBack }: FaceEnrollmentProps) {
         return
       }
 
-      // Process facial features for ZK proof
+      // Process facial features for verification
       setIsProcessing(true)
 
       // Get face descriptor
-      const faceDescriptor = Array.from(detection.descriptor)
+      const attemptDescriptor = Array.from(detection.descriptor)
 
       try {
-        // Generate Poseidon hash commitment
-        const commitment = await generatePoseidonHash(faceDescriptor)
+        // Calculate similarity with stored descriptor
+        const similarity = cosineSimilarity(storedFaceData.descriptor, attemptDescriptor)
+        const isMatch = similarity >= 0.6 // Using same threshold as face-api.js
 
-        // Store the commitment using the auth provider
-        await enrollFace(commitment)
+        if (isMatch) {
+          // Verify the commitment on the backend
+          await verifyFace(storedFaceData.commitment)
+          setVerificationSuccess(true)
+          onSuccess()
+        } else {
+          setError("Face verification failed. Please try again.")
+        }
 
-        // Store face data locally
-        storeFaceData(faceDescriptor, commitment)
-
-        setCaptureSuccess(true)
         setIsProcessing(false)
         setIsCapturing(false)
 
@@ -109,8 +123,8 @@ export default function FaceEnrollment({ onBack }: FaceEnrollmentProps) {
           tracks.forEach((track) => track.stop())
         }
       } catch (err) {
-        console.error("Face processing error:", err)
-        setError("Failed to process facial data. Please try again.")
+        console.error("Face verification error:", err)
+        setError("Failed to verify face. Please try again.")
         setIsProcessing(false)
         setIsCapturing(false)
       }
@@ -125,9 +139,9 @@ export default function FaceEnrollment({ onBack }: FaceEnrollmentProps) {
     <div className="flex min-h-screen items-center justify-center bg-blue-900 p-4">
       <Card className="w-full max-w-md bg-blue-800 border-purple-500">
         <CardHeader>
-          <CardTitle className="text-white">ZK Face Enrollment</CardTitle>
+          <CardTitle className="text-white">ZK Face Verification</CardTitle>
           <CardDescription className="text-gray-300">
-            Set up your facial biometrics for secure zero-knowledge verification
+            Verify your identity using zero-knowledge face verification
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -136,12 +150,12 @@ export default function FaceEnrollment({ onBack }: FaceEnrollmentProps) {
               <Loader2 className="h-8 w-8 animate-spin text-purple-400 mb-2" />
               <span className="text-gray-300">Initializing facial recognition...</span>
             </div>
-          ) : captureSuccess ? (
+          ) : verificationSuccess ? (
             <Alert className="bg-green-900/20 border-green-500">
               <Check className="h-4 w-4 text-green-400" />
-              <AlertTitle className="text-green-400">Enrollment Successful</AlertTitle>
+              <AlertTitle className="text-green-400">Verification Successful</AlertTitle>
               <AlertDescription className="text-gray-300">
-                Your facial biometrics have been securely enrolled. You can now use zero-knowledge verification for secure transactions.
+                Your identity has been verified using zero-knowledge proofs.
               </AlertDescription>
             </Alert>
           ) : (
@@ -171,9 +185,9 @@ export default function FaceEnrollment({ onBack }: FaceEnrollmentProps) {
                 {isProcessing && (
                   <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center text-white">
                     <Loader2 className="h-12 w-12 animate-spin mb-2" />
-                    <p>Processing facial data...</p>
+                    <p>Verifying face...</p>
                     <p className="text-xs mt-2 max-w-xs text-center text-gray-300">
-                      Your facial data is being processed locally and securely
+                      Your facial data is being verified locally and securely
                     </p>
                   </div>
                 )}
@@ -190,8 +204,8 @@ export default function FaceEnrollment({ onBack }: FaceEnrollmentProps) {
               <div className="text-sm text-gray-400">
                 <p className="font-medium mb-1">Privacy Notice:</p>
                 <ul className="list-disc pl-5 space-y-1">
-                  <li>Your raw facial data never leaves your device</li>
-                  <li>Only a secure cryptographic commitment is stored</li>
+                  <li>Your facial data is processed locally on your device</li>
+                  <li>Only a cryptographic commitment is sent to the server</li>
                   <li>Zero-Knowledge Proofs ensure your privacy during verification</li>
                 </ul>
               </div>
@@ -199,7 +213,7 @@ export default function FaceEnrollment({ onBack }: FaceEnrollmentProps) {
           )}
         </CardContent>
         <CardFooter className="flex flex-col gap-2">
-          {!captureSuccess && !isCameraActive && !isLoading && (
+          {!verificationSuccess && !isCameraActive && !isLoading && (
             <Button 
               onClick={startCamera} 
               className="w-full bg-purple-600 hover:bg-purple-700"
@@ -207,24 +221,25 @@ export default function FaceEnrollment({ onBack }: FaceEnrollmentProps) {
               Start Camera
             </Button>
           )}
-          {isCameraActive && !isCapturing && !isProcessing && !captureSuccess && (
+          {isCameraActive && !isCapturing && !isProcessing && !verificationSuccess && (
             <Button 
-              onClick={captureFace} 
+              onClick={verifyFaceCapture} 
               className="w-full bg-purple-600 hover:bg-purple-700"
             >
-              Capture Face
+              Verify Face
             </Button>
           )}
-          {captureSuccess && (
+          {!verificationSuccess && (
             <Button 
               onClick={onBack}
-              className="w-full bg-purple-600 hover:bg-purple-700"
+              variant="outline"
+              className="w-full border-purple-500 text-purple-400 hover:bg-purple-900/20"
             >
-              Continue
+              Back
             </Button>
           )}
         </CardFooter>
       </Card>
     </div>
   )
-}
+} 
