@@ -3,81 +3,101 @@
 use methods::{
     HASHER_GUEST_ELF, HASHER_GUEST_ID
 };
-use risc0_zkvm::{default_prover, ExecutorEnv};
+use risc0_zkvm::{default_prover, ExecutorEnv, Receipt};
+use serde::{Deserialize, Serialize};
+
+// Import the guest program's input/output types
+use face_verification_guest::{FaceVerificationInput, FaceVerificationOutput};
+
+#[derive(Serialize, Deserialize)]
+pub struct FaceVerificationResult {
+    pub receipt: Receipt,
+    pub output: FaceVerificationOutput,
+}
+
+pub fn verify_face(
+    reference_descriptor: Vec<f32>,
+    attempt_descriptor: Vec<f32>,
+) -> Result<FaceVerificationResult, Box<dyn std::error::Error>> {
+    // Create the input for the guest program
+    let input = FaceVerificationInput {
+        reference_descriptor,
+        attempt_descriptor,
+    };
+
+    // Create the execution environment
+    let env = ExecutorEnv::builder()
+        .add_input(&input)
+        .build()?;
+
+    // Get the prover
+    let prover = default_prover();
+
+    // Execute the guest program
+    let receipt = prover.prove_elf(env, include_bytes!("../guest/target/riscv32im-risc0-zkvm-elf/release/face-verification-guest"))?;
+
+    // Extract the output from the receipt
+    let output: FaceVerificationOutput = receipt.journal.decode()?;
+
+    Ok(FaceVerificationResult { receipt, output })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_face_verification() {
+        // Create test descriptors (all zeros for simplicity)
+        let reference = vec![0.0; 128];
+        let attempt = vec![0.0; 128];
+
+        // Verify the faces
+        let result = verify_face(reference, attempt).unwrap();
+
+        // Check the result
+        assert!(result.output.is_match);
+        assert_eq!(result.output.similarity_score, 1.0);
+    }
+
+    #[test]
+    fn test_face_verification_different() {
+        // Create test descriptors (different values)
+        let reference = vec![1.0; 128];
+        let attempt = vec![0.0; 128];
+
+        // Verify the faces
+        let result = verify_face(reference, attempt).unwrap();
+
+        // Check the result
+        assert!(!result.output.is_match);
+        assert!(result.output.similarity_score < 0.6);
+    }
+}
 
 fn main() {
-    // Initialize tracing. In order to view logs, run `RUST_LOG=info cargo run`
+    // Initialize tracing
     tracing_subscriber::fmt()
         .with_env_filter(tracing_subscriber::filter::EnvFilter::from_default_env())
         .init();
 
-    // An executor environment describes the configurations for the zkVM
-    // including program inputs.
-    // A default ExecutorEnv can be created like so:
-    // `let env = ExecutorEnv::builder().build().unwrap();`
-    // However, this `env` does not have any inputs.
-    //
-    // To add guest input to the executor environment, use
-    // ExecutorEnvBuilder::write().
-    // To access this method, you'll need to use ExecutorEnv::builder(), which
-    // creates an ExecutorEnvBuilder. When you're done adding input, call
-    // ExecutorEnvBuilder::build().
+    // Example usage
+    let reference = vec![0.0; 128];
+    let attempt = vec![0.0; 128];
 
-    // For example:
-    // let input: u32 = 15 * u32::pow(2, 27) + 1;
-    let input: String = std::env::args().nth(1).unwrap();
-    println!("Input argument is: {}", input);
-    
-    let env = ExecutorEnv::builder()
-        .write(&input)
-        .unwrap()
-        .build()
-        .unwrap();
-
-    // Obtain the default prover.
-    let prover = default_prover();
-
-    // Proof information by proving the specified ELF binary.
-    // This struct contains the receipt along with statistics about execution of the guest
-    let prove_info = prover
-        .prove(env, HASHER_GUEST_ELF)
-        .unwrap();
-
-    // extract the receipt.
-    let receipt = prove_info.receipt;
-
-    // // TODO: Implement code for retrieving receipt journal here.
-
-    // // For example:
-    // let _output: u32 = receipt.journal.decode().unwrap();
-
-    let mut bin_receipt = Vec::new();
-    ciborium::into_writer(&receipt, &mut bin_receipt).unwrap();
-    let out = std::fs::File::create("proof.bin").unwrap();
-    ciborium::into_writer(&receipt, out).unwrap();
-
-    println!(
-        "Serialized bytes array (hex) INNER: {}\n",
-        hex::encode(&bin_receipt)
-    );
-    let receipt_journal_bytes_array = &receipt.journal.bytes.as_slice();
-    println!(
-        "Journal bytes array (hex): {}\n",
-        hex::encode(&receipt_journal_bytes_array)
-    );
-    let image_id_hex = hex::encode(
-        HASHER_GUEST_ID
-            .into_iter()
-            .flat_map(|v| v.to_le_bytes().into_iter())
-            .collect::<Vec<_>>(),
-    );
-    println!("Serialized bytes array (hex) IMAGE_ID: {}\n", image_id_hex);
-    let output: String = receipt.journal.decode().unwrap();
-    println!("Output is: {}", output);
-
-    // The receipt was verified at the end of proving, but the below code is an
-    // example of how someone else could verify this receipt.
-    receipt
-        .verify(HASHER_GUEST_ID)
-        .unwrap();
+    match verify_face(reference, attempt) {
+        Ok(result) => {
+            println!("Face verification result:");
+            println!("Match: {}", result.output.is_match);
+            println!("Similarity score: {}", result.output.similarity_score);
+            
+            // Save the receipt
+            let mut receipt_file = std::fs::File::create("proof.bin").unwrap();
+            ciborium::into_writer(&result.receipt, &mut receipt_file).unwrap();
+            println!("Proof saved to proof.bin");
+        }
+        Err(e) => {
+            eprintln!("Error during face verification: {}", e);
+        }
+    }
 }

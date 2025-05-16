@@ -1,0 +1,18 @@
+[package]
+name = "face-verification-guest"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+risc0-zkvm = { version = "0.19", default-features = false, features = ["guest"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+[build-dependencies]
+risc0-build = { version = "0.19" }
+
+[target.'cfg(target_arch = "riscv32")'.dependencies]
+risc0-zkvm = { version = "0.19", default-features = false, features = ["guest"] }
+
+[build]
+target = "riscv32im-risc0-zkvm-elf" 
