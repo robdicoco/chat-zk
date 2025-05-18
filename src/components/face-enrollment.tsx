@@ -1,13 +1,12 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { useAuth } from "./auth-provider"
 import { Button } from "../ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "../ui/card"
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert"
 import { Loader2, Camera, Check, AlertTriangle } from "lucide-react"
 import { generatePoseidonHash } from "@/lib/zk-utils"
-import { detectFace, drawDetection } from "@/lib/face-api-utils"
+import { detectFace, drawDetection, loadModels } from "@/lib/face-api-utils"
 import { storeFaceData } from "@/lib/face-storage"
 
 interface FaceEnrollmentProps {
@@ -15,7 +14,6 @@ interface FaceEnrollmentProps {
 }
 
 export default function FaceEnrollment({ onBack }: FaceEnrollmentProps) {
-  const { user, enrollFace } = useAuth()
   const [isLoading, setIsLoading] = useState(true)
   const [isCameraActive, setIsCameraActive] = useState(false)
   const [isCapturing, setIsCapturing] = useState(false)
@@ -29,95 +27,141 @@ export default function FaceEnrollment({ onBack }: FaceEnrollmentProps) {
 
   // Initialize component
   useEffect(() => {
-    // Short timeout to simulate loading
-    const timer = setTimeout(() => {
-      setIsLoading(false)
-    }, 1000)
+    const init = async () => {
+      try {
+        // Initialize face-api models
+        await loadModels();
+        
+        // Short timeout to simulate loading
+        const timer = setTimeout(() => {
+          setIsLoading(false);
+        }, 1000);
 
-    return () => {
-      clearTimeout(timer)
-      // Clean up camera stream when component unmounts
-      if (videoRef.current && videoRef.current.srcObject) {
-        const stream = videoRef.current.srcObject as MediaStream
-        const tracks = stream.getTracks()
-        tracks.forEach((track) => track.stop())
+        return () => {
+          clearTimeout(timer);
+          // Clean up camera stream when component unmounts
+          if (videoRef.current && videoRef.current.srcObject) {
+            const stream = videoRef.current.srcObject as MediaStream;
+            const tracks = stream.getTracks();
+            tracks.forEach((track) => track.stop());
+          }
+        };
+      } catch (err) {
+        console.error("Initialization error:", err);
+        setError("Failed to initialize face recognition. Please try again.");
+        setIsLoading(false);
       }
-    }
-  }, [])
+    };
+
+    init();
+  }, []);
 
   // Draw face detection on canvas when available
   useEffect(() => {
     if (faceDetection && canvasRef.current && videoRef.current) {
-      drawDetection(canvasRef.current, videoRef.current, faceDetection)
+      drawDetection(canvasRef.current, videoRef.current, faceDetection);
     }
-  }, [faceDetection])
+  }, [faceDetection]);
 
   const startCamera = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true })
+      console.log("Starting camera...");
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { 
+          width: { ideal: 640 },
+          height: { ideal: 480 },
+          facingMode: "user"
+        } 
+      });
       if (videoRef.current) {
-        videoRef.current.srcObject = stream
-        setIsCameraActive(true)
-        setError("")
+        videoRef.current.srcObject = stream;
+        // Wait for video to be ready
+        await new Promise((resolve) => {
+          if (videoRef.current) {
+            videoRef.current.onloadedmetadata = () => {
+              console.log("Camera stream ready");
+              resolve(true);
+            };
+          }
+        });
+        setIsCameraActive(true);
+        setError("");
       }
     } catch (err) {
-      setError("Failed to access camera. Please ensure camera permissions are granted.")
+      console.error("Camera access error:", err);
+      setError("Failed to access camera. Please ensure camera permissions are granted.");
     }
   }
 
   const captureFace = async () => {
-    if (!videoRef.current || !canvasRef.current || !user) return
+    if (!videoRef.current || !canvasRef.current) {
+      console.error("Missing required elements:", {
+        video: !!videoRef.current,
+        canvas: !!canvasRef.current
+      });
+      return;
+    }
 
-    setIsCapturing(true)
-    setError("")
+    setIsCapturing(true);
+    setError("");
 
     try {
+      console.log("Starting face detection...");
+      // Ensure video is playing
+      if (videoRef.current.paused) {
+        await videoRef.current.play();
+      }
+
       // Detect face using face-api.js
-      const detection = await detectFace(videoRef.current)
-      setFaceDetection(detection)
+      const detection = await detectFace(videoRef.current);
+      console.log("Face detection result:", detection ? "Face detected" : "No face detected");
+      setFaceDetection(detection);
 
       if (!detection) {
-        setError("No face detected. Please ensure your face is clearly visible.")
-        setIsCapturing(false)
-        return
+        setError("No face detected. Please ensure your face is clearly visible and well-lit.");
+        setIsCapturing(false);
+        return;
       }
 
       // Process facial features for ZK proof
-      setIsProcessing(true)
+      setIsProcessing(true);
+      console.log("Processing face descriptor...");
 
       // Get face descriptor
-      const faceDescriptor = Array.from(detection.descriptor)
+      const faceDescriptor = Array.from(detection.descriptor);
+      console.log("Face descriptor length:", faceDescriptor.length);
 
       try {
         // Generate Poseidon hash commitment
-        const commitment = await generatePoseidonHash(faceDescriptor)
-
-        // Store the commitment using the auth provider
-        await enrollFace(commitment)
+        console.log("Generating Poseidon hash...");
+        const commitment = await generatePoseidonHash(faceDescriptor);
+        console.log("Commitment generated successfully");
 
         // Store face data locally
-        storeFaceData(faceDescriptor, commitment)
+        storeFaceData(faceDescriptor, commitment);
+        console.log("Face data stored locally");
 
-        setCaptureSuccess(true)
-        setIsProcessing(false)
-        setIsCapturing(false)
+        setCaptureSuccess(true);
+        setIsProcessing(false);
+        setIsCapturing(false);
 
         // Stop camera
         if (videoRef.current && videoRef.current.srcObject) {
-          const stream = videoRef.current.srcObject as MediaStream
-          const tracks = stream.getTracks()
-          tracks.forEach((track) => track.stop())
+          const stream = videoRef.current.srcObject as MediaStream;
+          const tracks = stream.getTracks();
+          tracks.forEach((track) => track.stop());
+          console.log("Camera stream stopped");
         }
       } catch (err) {
-        console.error("Face processing error:", err)
-        setError("Failed to process facial data. Please try again.")
-        setIsProcessing(false)
-        setIsCapturing(false)
+        console.error("Face processing error:", err);
+        setError(err instanceof Error ? err.message : "Failed to process facial data. Please try again.");
+        setIsProcessing(false);
+        setIsCapturing(false);
       }
     } catch (err) {
-      console.error("Face capture error:", err)
-      setError("Failed to capture face. Please try again.")
-      setIsCapturing(false)
+      console.error("Face capture error:", err);
+      setError(err instanceof Error ? err.message : "Failed to capture face. Please try again.");
+      setIsCapturing(false);
     }
   }
 
@@ -226,5 +270,5 @@ export default function FaceEnrollment({ onBack }: FaceEnrollmentProps) {
         </CardFooter>
       </Card>
     </div>
-  )
+  );
 }

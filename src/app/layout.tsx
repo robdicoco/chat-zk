@@ -6,6 +6,7 @@ import "./globals.css";
 
 import { AbstraxionProvider } from "@burnt-labs/abstraxion";
 import { Toaster } from 'react-hot-toast';
+import { AuthProvider } from "@/components/auth-provider";
 
 import "@burnt-labs/ui/dist/index.css";
 
@@ -63,10 +64,12 @@ export default function RootLayout({
         style={{ fontFamily: "var(--font-geist-sans)" }}
       >
         <AbstraxionProvider config={treasuryConfig}>
-          <div className="flex-grow relative">
-            <GearMenu />
-            {children}
-          </div>
+          <AuthProvider>
+            <div className="flex-grow relative">
+              <GearMenu />
+              {children}
+            </div>
+          </AuthProvider>
         </AbstraxionProvider>
         <Toaster position="top-right" />
       </body>
