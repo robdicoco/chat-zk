@@ -22,6 +22,8 @@ import GiftReceivePage from "./gift_receive";
 import GiftReturnPage from "./gift_return";
 import TransferPage from "./transfer";
 import FaceEnrollment from '../components/face-enrollment';
+import FaceLogin from '../components/face-login';
+import { getFaceData } from '@/lib/face-storage';
 // import { useRouter } from 'next/navigation';
 
 import Logo from '../ui/Logo';
@@ -55,6 +57,7 @@ export default function Home() {
     email: '',
   });
   const [formError, setFormError] = useState<string | null>(null);
+  const [hasStoredFaceData, setHasStoredFaceData] = useState(false);
 
   // const blockExplorerUrl = `https://www.mintscan.io/xion-testnet/tx/${instantiateResult?.transactionHash}`;
 
@@ -145,10 +148,21 @@ export default function Home() {
     setShowNewUserForm(false);
   };
 
+  // Add useEffect to check for stored face data
+  useEffect(() => {
+    const faceData = getFaceData();
+    setHasStoredFaceData(!!faceData);
+  }, [currentPage]); // Re-check when page changes
+
   const renderPage = () => {
     switch (currentPage) {
       case 'face-enrollment':
         return <FaceEnrollment onBack={() => setCurrentPage('initial')} />;
+      case 'face-login':
+        return <FaceLogin 
+          onSuccess={() => setCurrentPage('initial')} 
+          onBack={() => setCurrentPage('initial')} 
+        />;
       case 'contacts':
         return <ContactPage onContactSelect={(contact) => {
           setSelectedContact(contact);
@@ -198,13 +212,25 @@ export default function Home() {
             </Button>}
 
             {bech32Address && (
-              <UserInfo
-                bech32Address={bech32Address}
-                isLoadingUserInfo={isLoadingUserInfo}
-                showNewUserForm={showNewUserForm}
-                userInfo={userInfo}
-                onUserCreated={handleUserCreated}
-              />
+              <>
+                <UserInfo
+                  bech32Address={bech32Address}
+                  isLoadingUserInfo={isLoadingUserInfo}
+                  showNewUserForm={showNewUserForm}
+                  userInfo={userInfo}
+                  onUserCreated={handleUserCreated}
+                />
+                {hasStoredFaceData && (
+                  <Button
+                    fullWidth
+                    onClick={() => setCurrentPage('face-login')}
+                    structure="base"
+                    className="max-w-[300px] mx-auto bg-purple-600 text-white hover:bg-purple-700"
+                  >
+                    ZK Login
+                  </Button>
+                )}
+              </>
             )}
             <Abstraxion onClose={() => setShowModal(false)} />
           </main>
@@ -225,17 +251,19 @@ export default function Home() {
             <div className="fixed top-16 right-4 bg-white shadow-lg rounded p-4 z-50">
               {client ? (
                 <>
-                  <Button
-                    fullWidth
-                    onClick={() => {
-                      setCurrentPage('face-enrollment');
-                      setGearMenuOpen(false);
-                    }}
-                    structure="base"
-                    className="bg-purple-600 text-white hover:bg-purple-700 mb-2"
-                  >
-                    Add ZK Face
-                  </Button>
+                  {!hasStoredFaceData && (
+                    <Button
+                      fullWidth
+                      onClick={() => {
+                        setCurrentPage('face-enrollment');
+                        setGearMenuOpen(false);
+                      }}
+                      structure="base"
+                      className="bg-purple-600 text-white hover:bg-purple-700 mb-2"
+                    >
+                      Add ZK Face
+                    </Button>
+                  )}
                   <Button
                     fullWidth
                     onClick={() => {
