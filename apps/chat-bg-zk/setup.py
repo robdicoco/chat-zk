@@ -10,7 +10,7 @@ setup(
         "sqlalchemy==2.0.23",
         "pydantic==2.4.2",
         "passlib[bcrypt]==1.7.4",
-        "python-multipart==0.0.6",
+        "python-multipart>=0.0.18",
         "aiofiles==23.2.1",
         "email-validator==2.1.0.post1",
         "pytest==7.4.3",
