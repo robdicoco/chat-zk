@@ -13,7 +13,7 @@ setup(
         "python-multipart>=0.0.18",
         "aiofiles==23.2.1",
         "email-validator==2.1.0.post1",
-        "pytest==7.4.3",
+        "pytest>=9.0.3",
         "pytest-asyncio==0.21.1",
         "httpx==0.25.2",
         "pytest-mock==3.11.1"
